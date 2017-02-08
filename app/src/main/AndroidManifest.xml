@@ -13,6 +13,9 @@
         <meta-data
             android:name="xposeddescription"
             android:value="Alternative to ZuobihiGPS"/>
+        <meta-data
+            android:name="xposedminversion"
+            android:value="30"/>
     </application>
 
 </manifest>
