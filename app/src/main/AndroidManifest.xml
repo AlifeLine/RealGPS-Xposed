@@ -7,7 +7,12 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-
+        <meta-data
+            android:name="xposedmodule"
+            android:value="true"/>
+        <meta-data
+            android:name="xposeddescription"
+            android:value="Alternative to ZuobihiGPS"/>
     </application>
 
 </manifest>
