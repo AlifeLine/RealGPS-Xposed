@@ -9,7 +9,6 @@ android {
         targetSdkVersion 22
         versionCode 1
         versionName "1.0"
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
         release {
@@ -21,5 +20,6 @@ android {
 
 dependencies {
     provided 'de.robv.android.xposed:api:53'
+    compile 'com.alibaba:fastjson:1.1.56.android'
     compile fileTree(dir: 'libs', include: ['*.jar'])
 }
