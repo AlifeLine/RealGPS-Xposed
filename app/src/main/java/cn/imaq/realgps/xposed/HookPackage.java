@@ -21,6 +21,7 @@ public class HookPackage implements IXposedHookLoadPackage {
     @Override
     public void handleLoadPackage(final XC_LoadPackage.LoadPackageParam lpParam) throws Throwable {
         //XposedBridge.log("Load package: " + lpParam.packageName + " by " + lpParam.processName);
+        ZuobihiServer.start();
 
         // Providers related
         XC_MethodHook providersXC = new XC_MethodHook() {
@@ -47,7 +48,7 @@ public class HookPackage implements IXposedHookLoadPackage {
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 if (param.args[0].equals(LocationManager.GPS_PROVIDER)) {
                     // TODO no ways yet
-                    param.setResult(null);
+                    // param.setResult(null);
                 }
             }
         });
@@ -71,12 +72,18 @@ public class HookPackage implements IXposedHookLoadPackage {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 // TODO return satellites
+                GpsStatus status = (GpsStatus) XposedHelpers.newInstance(GpsStatus.class);
+                if (Build.VERSION.SDK_INT >= 24) {
+
+                } else {
+
+                }
             }
         });
         XposedHelpers.findAndHookMethod(LocationManager.class, "sendExtraCommand", String.class, String.class, Bundle.class, new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                param.setResult(false);
+                param.setResult(true);
             }
         });
 
