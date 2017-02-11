@@ -1,13 +1,14 @@
 package cn.imaq.realgps.xposed;
 
 import android.location.GpsStatus;
+import android.os.Build;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
 import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
+import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -21,13 +22,15 @@ public class ZuobihiServer {
 
     private static final Pattern locPattern = Pattern.compile("\\[LOC:(.*?),(.*?),(.*?),(.*?),(.*?),(.*?),(.*?);");
     private static final Pattern satPattern = Pattern.compile("SAT:(.*?),(.*?),(.*?),(.*?);");
+    private static final Random rand = new Random();
 
     private static double lat, lng, alt, speed, bearing, accr, time;
-    private static ArrayList<ZuobihiSatellite> satsMain = new ArrayList<>();
-    private static ArrayList<ZuobihiSatellite> satsBack = new ArrayList<>();
-    private static boolean usingSatsMain = true;
-
-    private static GpsStatus gpsStatus = (GpsStatus) XposedHelpers.newInstance(GpsStatus.class);
+    private static int satNum = 0;
+    private static int[] prn = new int[64];
+    private static float[] snr = new float[64];
+    private static float[] elv = new float[64];
+    private static float[] azm = new float[64];
+    private static int mask;
 
     static void start() {
         if (ssocket == null || ssocket.isClosed()) {
@@ -54,7 +57,18 @@ public class ZuobihiServer {
         }
     }
 
-    private static boolean parseData(String s) {
+    static synchronized GpsStatus getGpsStatus() {
+        GpsStatus status = (GpsStatus) XposedHelpers.newInstance(GpsStatus.class);
+        if (Build.VERSION.SDK_INT >= 24) {
+
+        } else {
+            XposedHelpers.callMethod(status, "setStatus", satNum, prn, snr, elv, azm, mask, mask, mask);
+            XposedHelpers.callMethod(status, "setTimeToFirstFix", 5 + (rand.nextInt(9) - 4));
+        }
+        return status;
+    }
+
+    private static synchronized boolean parseData(String s) {
         // [LOC:$lat,$lng,$alt,$speed,$bearing,$accr,$time;
         // SAT:${sat.PRN},${sat.snr},${sat.elv},${sat.azm};]
         try {
@@ -69,41 +83,24 @@ public class ZuobihiServer {
                 accr = Double.parseDouble(locMatcher.group(6));
                 time = Long.parseLong(locMatcher.group(7));
 
-                int satNum = 0;
-                ArrayList<ZuobihiSatellite> sats = getSatsListForUpdate();
+                satNum = mask = 0;
                 Matcher satMatcher = satPattern.matcher(s);
                 while (satMatcher.find()) {
                     if (satMatcher.groupCount() == 4) {
+                        prn[satNum] = Integer.parseInt(satMatcher.group(1));
+                        snr[satNum] = Float.parseFloat(satMatcher.group(2));
+                        elv[satNum] = Float.parseFloat(satMatcher.group(3));
+                        azm[satNum] = Float.parseFloat(satMatcher.group(4));
+                        mask |= (1 << prn[satNum]);
                         satNum++;
-                        while (sats.size() < satNum) {
-                            sats.add(new ZuobihiSatellite());
-                        }
-                        ZuobihiSatellite sat = sats.get(satNum - 1);
-                        sat.valid = true;
-                        sat.PRN = Integer.parseInt(satMatcher.group(1));
-                        sat.snr = Float.parseFloat(satMatcher.group(2));
-                        sat.elv = Float.parseFloat(satMatcher.group(3));
-                        sat.azm = Float.parseFloat(satMatcher.group(4));
                     }
                 }
-                for (int i = satNum; i < sats.size(); i++) {
-                    sats.get(i).valid = false;
-                }
-                usingSatsMain = !usingSatsMain;
             }
-            XposedBridge.log("Zuobihi: Data parsed, satsMain: " + satsMain.size() + ", satsBack: " + satsBack.size() + ", now using " + (usingSatsMain ? "satsMain" : "satsBack"));
+            XposedBridge.log("Zuobihi: Data parsed, containing " + satNum + " satellites");
             return true;
         } catch (Throwable ignored) {
         }
         return false;
-    }
-
-    private static ArrayList<ZuobihiSatellite> getSatsListForUpdate() {
-        return usingSatsMain ? satsMain : satsBack;
-    }
-
-    static ArrayList<ZuobihiSatellite> getSatsListForStatus() {
-        return usingSatsMain ? satsBack : satsMain;
     }
 
     private static class ServerThread implements Runnable {

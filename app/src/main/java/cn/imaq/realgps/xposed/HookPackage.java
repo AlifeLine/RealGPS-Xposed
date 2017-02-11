@@ -71,13 +71,7 @@ public class HookPackage implements IXposedHookLoadPackage {
         XposedHelpers.findAndHookMethod(LocationManager.class, "getGpsStatus", GpsStatus.class, new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                // TODO return satellites
-                GpsStatus status = (GpsStatus) XposedHelpers.newInstance(GpsStatus.class);
-                if (Build.VERSION.SDK_INT >= 24) {
-
-                } else {
-
-                }
+                param.setResult(ZuobihiServer.getGpsStatus());
             }
         });
         XposedHelpers.findAndHookMethod(LocationManager.class, "sendExtraCommand", String.class, String.class, Bundle.class, new XC_MethodHook() {
