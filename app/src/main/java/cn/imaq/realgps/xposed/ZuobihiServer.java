@@ -1,9 +1,8 @@
 package cn.imaq.realgps.xposed;
 
-import android.location.GpsStatus;
-import android.os.Build;
+import android.app.AndroidAppHelper;
+import android.content.Intent;
 import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
 
 import java.io.InputStream;
 import java.net.ServerSocket;
@@ -26,10 +25,10 @@ public class ZuobihiServer {
 
     private static double lat, lng, alt, speed, bearing, accr, time;
     private static int satNum = 0;
-    private static int[] prn = new int[64];
-    private static float[] snr = new float[64];
-    private static float[] elv = new float[64];
-    private static float[] azm = new float[64];
+    private static final int[] prn = new int[64];
+    private static final float[] snr = new float[64];
+    private static final float[] elv = new float[64];
+    private static final float[] azm = new float[64];
     private static int mask;
 
     static void start() {
@@ -49,23 +48,11 @@ public class ZuobihiServer {
                             csocket = socket;
                             new Thread(new ServerThread()).start();
                         }
-                    } catch (Throwable t) {
-                        t.printStackTrace();
+                    } catch (Throwable ignored) {
                     }
                 }
             }).start();
         }
-    }
-
-    static synchronized GpsStatus getGpsStatus() {
-        GpsStatus status = (GpsStatus) XposedHelpers.newInstance(GpsStatus.class);
-        if (Build.VERSION.SDK_INT >= 24) {
-
-        } else {
-            XposedHelpers.callMethod(status, "setStatus", satNum, prn, snr, elv, azm, mask, mask, mask);
-            XposedHelpers.callMethod(status, "setTimeToFirstFix", 5 + (rand.nextInt(9) - 4));
-        }
-        return status;
     }
 
     private static synchronized boolean parseData(String s) {
@@ -91,12 +78,22 @@ public class ZuobihiServer {
                         snr[satNum] = Float.parseFloat(satMatcher.group(2));
                         elv[satNum] = Float.parseFloat(satMatcher.group(3));
                         azm[satNum] = Float.parseFloat(satMatcher.group(4));
-                        mask |= (1 << prn[satNum]);
+                        mask |= (1 << (prn[satNum] - 1));
                         satNum++;
                     }
                 }
             }
-            XposedBridge.log("Zuobihi: Data parsed, containing " + satNum + " satellites");
+            XposedBridge.log("Zuobihi: Data parsed, containing " + satNum + " satellites |" + prn.toString());
+
+            Intent intent = new Intent("cn.imaq.realgps.xposed.UPDATE");
+            intent.putExtra("svCount", satNum);
+            intent.putExtra("prn", prn);
+            intent.putExtra("snr", snr);
+            intent.putExtra("elv", elv);
+            intent.putExtra("azm", azm);
+            intent.putExtra("mask", mask);
+            AndroidAppHelper.currentApplication().sendBroadcast(intent);
+
             return true;
         } catch (Throwable ignored) {
         }
@@ -125,8 +122,7 @@ public class ZuobihiServer {
                     }
                     // XposedBridge.log("Zuobihi-Socket-Data: " + data);
                 }
-            } catch (Throwable t) {
-                t.printStackTrace();
+            } catch (Throwable ignored) {
             }
             XposedBridge.log("Zuobihi-Socket: connection closed");
         }

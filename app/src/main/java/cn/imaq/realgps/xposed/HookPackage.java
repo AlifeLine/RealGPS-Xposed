@@ -1,5 +1,6 @@
 package cn.imaq.realgps.xposed;
 
+import android.app.Application;
 import android.location.*;
 import android.os.Build;
 import android.os.Bundle;
@@ -20,8 +21,19 @@ public class HookPackage implements IXposedHookLoadPackage {
 
     @Override
     public void handleLoadPackage(final XC_LoadPackage.LoadPackageParam lpParam) throws Throwable {
-        //XposedBridge.log("Load package: " + lpParam.packageName + " by " + lpParam.processName);
+        XposedBridge.log("Load package: " + lpParam.packageName + " by " + lpParam.processName);
         ZuobihiServer.start();
+
+        XposedHelpers.findAndHookMethod(Application.class, "onCreate", new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                XposedBridge.log("Load application: " + lpParam.packageName);
+                ((Application) param.thisObject).registerReceiver(
+                        ZuobihiReceiver.getInstance(),
+                        ZuobihiReceiver.intentFilter
+                );
+            }
+        });
 
         // Providers related
         XC_MethodHook providersXC = new XC_MethodHook() {
@@ -71,7 +83,7 @@ public class HookPackage implements IXposedHookLoadPackage {
         XposedHelpers.findAndHookMethod(LocationManager.class, "getGpsStatus", GpsStatus.class, new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                param.setResult(ZuobihiServer.getGpsStatus());
+                param.setResult(ZuobihiReceiver.getGpsStatus());
             }
         });
         XposedHelpers.findAndHookMethod(LocationManager.class, "sendExtraCommand", String.class, String.class, Bundle.class, new XC_MethodHook() {
