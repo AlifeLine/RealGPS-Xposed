@@ -1,11 +1,9 @@
 package cn.imaq.realgps.xposed;
 
+import android.app.AndroidAppHelper;
 import android.app.PendingIntent;
 import android.content.Context;
-import android.location.Criteria;
-import android.location.GpsStatus;
-import android.location.LocationListener;
-import android.location.LocationManager;
+import android.location.*;
 import android.os.Build;
 import android.os.Bundle;
 import de.robv.android.xposed.IXposedHookLoadPackage;
@@ -23,14 +21,19 @@ public class HookPackage implements IXposedHookLoadPackage {
 
     @Override
     public void handleLoadPackage(final XC_LoadPackage.LoadPackageParam lpParam) throws Throwable {
-        XposedBridge.log("Load package: " + lpParam.packageName + " by " + lpParam.processName);
+        // XposedBridge.log("Load package: " + lpParam.packageName + " by " + lpParam.processName);
         XposedBridge.hookAllConstructors(LocationManager.class, new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                ((Context) param.args[0]).registerReceiver(
+                Context context = AndroidAppHelper.currentApplication();
+                if (context == null) {
+                    context = (Context) param.args[0];
+                }
+                context.registerReceiver(
                         ZuobihiReceiver.getInstance(),
                         ZuobihiReceiver.intentFilter
                 );
+                XposedBridge.log("Registered receiver for " + lpParam.packageName);
             }
         });
         new ZuobihiServer();
@@ -56,8 +59,34 @@ public class HookPackage implements IXposedHookLoadPackage {
         });
         XposedHelpers.findAndHookMethod(LocationManager.class, "getProvider", String.class, new XC_MethodHook() {
             @Override
-            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                // TODO no ways yet
+            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                // For devices without GPS
+                if (param.args[0].equals(LocationManager.GPS_PROVIDER) && param.getResult() == null) {
+                    try {
+                        // For Android 4.2+
+                        Object prop = XposedHelpers.newInstance(
+                                XposedHelpers.findClass("com.android.internal.location.ProviderProperties", null),
+                                false, true, false, false, true, true, true, Criteria.POWER_MEDIUM, Criteria.ACCURACY_HIGH
+                        );
+                        param.setResult(XposedHelpers.newInstance(LocationProvider.class, LocationManager.GPS_PROVIDER, prop));
+                    } catch (Throwable t) {
+                        // For Android 4.2-
+                        Object provider = XposedHelpers.newInstance(
+                                XposedHelpers.findClass("com.android.internal.location.DummyLocationProvider", null),
+                                LocationManager.GPS_PROVIDER, XposedHelpers.getObjectField(param.thisObject, "mService")
+                        );
+                        XposedHelpers.callMethod(provider, "setRequiresNetwork", false);
+                        XposedHelpers.callMethod(provider, "setRequiresSatellite", true);
+                        XposedHelpers.callMethod(provider, "setRequiresCell", false);
+                        XposedHelpers.callMethod(provider, "setHasMonetaryCost", false);
+                        XposedHelpers.callMethod(provider, "setSupportsAltitude", true);
+                        XposedHelpers.callMethod(provider, "setSupportsSpeed", true);
+                        XposedHelpers.callMethod(provider, "setSupportsBearing", true);
+                        XposedHelpers.callMethod(provider, "setPowerRequirement", Criteria.POWER_MEDIUM);
+                        XposedHelpers.callMethod(provider, "setAccuracy", Criteria.ACCURACY_HIGH);
+                        param.setResult(provider);
+                    }
+                }
             }
         });
         XposedHelpers.findAndHookMethod(LocationManager.class, "isProviderEnabled", String.class, new XC_MethodHook() {

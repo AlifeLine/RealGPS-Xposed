@@ -1,13 +1,13 @@
 package cn.imaq.realgps.xposed;
 
 import android.app.AndroidAppHelper;
+import android.content.Context;
 import android.content.Intent;
 import de.robv.android.xposed.XposedBridge;
 
 import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -19,15 +19,18 @@ public class ZuobihiServer {
     private ServerSocket ssocket;
     private Socket csocket;
 
-    private int svCount, mask;
     private int[] prn;
     private float[] snr, elv, azm;
 
     private Pattern locPattern, satPattern;
-    private Random rand;
+    private Context context;
     private Intent intent;
 
     public ZuobihiServer() {
+        context = AndroidAppHelper.currentApplication();
+        if (context == null) {
+            return;
+        }
         try {
             ssocket = new ServerSocket(9244);
             prn = new int[64];
@@ -36,7 +39,6 @@ public class ZuobihiServer {
             azm = new float[64];
             locPattern = Pattern.compile("\\[LOC:(.*?),(.*?),(.*?),(.*?),(.*?),(.*?),(.*?);");
             satPattern = Pattern.compile("SAT:(.*?),(.*?),(.*?),(.*?);");
-            rand = new Random();
             intent = new Intent("cn.imaq.realgps.xposed.UPDATE");
 
             new Thread(new Runnable() {
@@ -49,7 +51,7 @@ public class ZuobihiServer {
                             // close old connection
                             if (csocket != null) {
                                 csocket.close();
-                                XposedBridge.log("ZuobihiServer: closed old connection");
+                                // XposedBridge.log("ZuobihiServer: closed old connection");
                             }
                             csocket = socket;
                             new Thread(new ServerThread()).start();
@@ -77,7 +79,7 @@ public class ZuobihiServer {
                 intent.putExtra("accr", Float.parseFloat(locMatcher.group(6)));
                 intent.putExtra("time", Long.parseLong(locMatcher.group(7)));
 
-                svCount = mask = 0;
+                int svCount = 0, mask = 0;
                 Matcher satMatcher = satPattern.matcher(s);
                 while (satMatcher.find()) {
                     if (satMatcher.groupCount() == 4) {
@@ -90,7 +92,7 @@ public class ZuobihiServer {
                     }
                 }
 
-                XposedBridge.log("ZuobihiServer: Data parsed, containing " + svCount + " satellites");
+                // XposedBridge.log("ZuobihiServer: Data parsed, containing " + svCount + " satellites");
                 if (svCount > 0) {
                     intent.putExtra("svCount", svCount);
                     intent.putExtra("prn", prn);
@@ -98,7 +100,8 @@ public class ZuobihiServer {
                     intent.putExtra("elv", elv);
                     intent.putExtra("azm", azm);
                     intent.putExtra("mask", mask);
-                    AndroidAppHelper.currentApplication().sendBroadcast(intent);
+                    context.sendBroadcast(intent);
+                    // XposedBridge.log("ZuobihiServer: broadcast sent");
                 }
             }
             return true;
@@ -110,7 +113,7 @@ public class ZuobihiServer {
     private class ServerThread implements Runnable {
         @Override
         public void run() {
-            XposedBridge.log("ZuobihiServer: opened new connection");
+            // XposedBridge.log("ZuobihiServer: opened new connection");
             try {
                 InputStream input = csocket.getInputStream();
                 byte[] buf = new byte[4096];
@@ -130,7 +133,7 @@ public class ZuobihiServer {
                 }
             } catch (Throwable ignored) {
             }
-            XposedBridge.log("ZuobihiServer: connection closed");
+            // XposedBridge.log("ZuobihiServer: connection closed");
         }
     }
 

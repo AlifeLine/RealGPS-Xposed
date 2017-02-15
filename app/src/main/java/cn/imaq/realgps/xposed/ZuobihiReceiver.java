@@ -66,6 +66,7 @@ public class ZuobihiReceiver extends BroadcastReceiver {
         elv = intent.getFloatArrayExtra("elv");
         azm = intent.getFloatArrayExtra("azm");
         mask = intent.getIntExtra("mask", 0);
+        // XposedBridge.log("ZuobihiReceiver: received " + svCount + " satellites");
         // notify listeners
         if (svCount > 0) {
             for (LocationListener listener : locationListeners) {
