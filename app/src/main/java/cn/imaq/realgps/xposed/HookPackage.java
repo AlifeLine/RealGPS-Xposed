@@ -4,11 +4,11 @@ import android.app.AndroidAppHelper;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.location.*;
-import android.os.Build;
-import android.os.Bundle;
 import de.robv.android.xposed.*;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.net.ServerSocket;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,10 +59,11 @@ public class HookPackage implements IXposedHookLoadPackage {
             }
         });
 
-        HashMap<String, XC_MethodHook> hooks = new HashMap<>(16);
+        // ========== HOOKS ==========
+        HashMap<String, XC_MethodHook> hooks = new HashMap<>(27, 1);
 
         // Providers related
-        XC_MethodHook providersXC = new XC_MethodHook() {
+        XC_MethodHook providerListXC = new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                 List list = (List) param.getResult();
@@ -72,20 +73,19 @@ public class HookPackage implements IXposedHookLoadPackage {
                 }
             }
         };
-        XposedHelpers.findAndHookMethod(LocationManager.class, "getAllProviders", providersXC);
-        XposedHelpers.findAndHookMethod(LocationManager.class, "getProviders", providersXC);
-        XposedBridge.hookAllMethods(LocationManager.class, "getProviders", providersXC);
-        XposedHelpers.findAndHookMethod(LocationManager.class, "getBestProvider", Criteria.class, boolean.class, new XC_MethodHook() {
+        hooks.put("getAllProviders", providerListXC);
+        hooks.put("getProviders", providerListXC);
+        hooks.put("getBestProvider", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 param.setResult(LocationManager.GPS_PROVIDER);
             }
         });
-        XposedHelpers.findAndHookMethod(LocationManager.class, "getProvider", String.class, new XC_MethodHook() {
+        hooks.put("getProvider", new XC_MethodHook() {
             @Override
-            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 // For devices without GPS
-                if (param.args[0].equals(LocationManager.GPS_PROVIDER) && param.getResult() == null) {
+                if (param.args[0].equals(LocationManager.GPS_PROVIDER)) {
                     try {
                         // For Android 4.2+
                         Object prop = XposedHelpers.newInstance(
@@ -113,7 +113,7 @@ public class HookPackage implements IXposedHookLoadPackage {
                 }
             }
         });
-        XposedHelpers.findAndHookMethod(LocationManager.class, "isProviderEnabled", String.class, new XC_MethodHook() {
+        hooks.put("isProviderEnabled", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 if (param.args[0].equals(LocationManager.GPS_PROVIDER)) {
@@ -123,21 +123,24 @@ public class HookPackage implements IXposedHookLoadPackage {
         });
 
         // GPS related
-        XposedHelpers.findAndHookMethod(LocationManager.class, "addGpsStatusListener", GpsStatus.Listener.class, new XC_MethodHook() {
+        hooks.put("addGpsStatusListener", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                ZuobihiReceiver.getInstance().gpsListeners.add((GpsStatus.Listener) param.args[0]);
+                GpsStatus.Listener listener = (GpsStatus.Listener) param.args[0];
+                listener.onGpsStatusChanged(GpsStatus.GPS_EVENT_STARTED);
+                listener.onGpsStatusChanged(GpsStatus.GPS_EVENT_FIRST_FIX);
+                ZuobihiReceiver.getInstance().gpsListeners.add(listener);
                 param.setResult(true);
             }
         });
-        XposedHelpers.findAndHookMethod(LocationManager.class, "removeGpsStatusListener", GpsStatus.Listener.class, new XC_MethodHook() {
+        hooks.put("removeGpsStatusListener", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 ZuobihiReceiver.getInstance().gpsListeners.remove(param.args[0]);
                 param.setResult(null);
             }
         });
-        XposedHelpers.findAndHookMethod(LocationManager.class, "getGpsStatus", GpsStatus.class, new XC_MethodHook() {
+        hooks.put("getGpsStatus", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 param.setResult(ZuobihiReceiver.getInstance().getAsGpsStatus());
@@ -145,18 +148,25 @@ public class HookPackage implements IXposedHookLoadPackage {
         });
 
         // Location related
-        XposedHelpers.findAndHookMethod(LocationManager.class, "getLastKnownLocation", String.class, new XC_MethodHook() {
+        hooks.put("getLastLocation", new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                param.setResult(ZuobihiReceiver.getInstance().getAsLocation(LocationManager.GPS_PROVIDER));
+            }
+        });
+        hooks.put("getLastKnownLocation", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 param.setResult(ZuobihiReceiver.getInstance().getAsLocation((String) param.args[0]));
             }
         });
-        XposedBridge.hookAllMethods(LocationManager.class, "requestLocationUpdates", new XC_MethodHook() {
+        hooks.put("requestLocationUpdates", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 for (int i = 1; i < param.args.length; i++) {
                     if (param.args[i] instanceof LocationListener) {
-                        XposedBridge.log(lpParam.packageName + " REQ_LISTENER " + param.args[i].getClass().getCanonicalName());
+                        XposedBridge.log(lpParam.packageName + " REQ_LISTENER " + param.args[i].getClass().getName());
+                        ((LocationListener) param.args[i]).onProviderEnabled(LocationManager.GPS_PROVIDER);
                         ZuobihiReceiver.getInstance().locationListeners.add((LocationListener) param.args[i]);
                         break;
                     } else if (param.args[i] instanceof PendingIntent) {
@@ -167,7 +177,7 @@ public class HookPackage implements IXposedHookLoadPackage {
                 param.setResult(null);
             }
         });
-        XposedBridge.hookAllMethods(LocationManager.class, "requestSingleUpdate", new XC_MethodHook() {
+        hooks.put("requestSingleUpdate", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 if (param.args[1] instanceof LocationListener) {
@@ -182,7 +192,7 @@ public class HookPackage implements IXposedHookLoadPackage {
                 param.setResult(null);
             }
         });
-        XposedBridge.hookAllMethods(LocationManager.class, "removeUpdates", new XC_MethodHook() {
+        hooks.put("removeUpdates", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 if (param.args[0] instanceof LocationListener) {
@@ -201,29 +211,45 @@ public class HookPackage implements IXposedHookLoadPackage {
                 param.setResult(null);
             }
         };
-        XposedBridge.hookAllMethods(LocationManager.class, "addNmeaListener", new XC_MethodHook() {
+        XC_MethodHook returnFalse = new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 param.setResult(false);
             }
-        });
-        XposedBridge.hookAllMethods(LocationManager.class, "removeNmeaListener", returnNull);
-        XposedHelpers.findAndHookMethod(LocationManager.class, "addProximityAlert", double.class, double.class, float.class, long.class, PendingIntent.class, returnNull);
-        XposedHelpers.findAndHookMethod(LocationManager.class, "removeProximityAlert", PendingIntent.class, returnNull);
-        XposedBridge.hookAllMethods(LocationManager.class, "addGeofence", returnNull);
-        XposedHelpers.findAndHookMethod(LocationManager.class, "sendExtraCommand", String.class, String.class, Bundle.class, new XC_MethodHook() {
+        };
+        hooks.put("addNmeaListener", returnFalse);
+        hooks.put("removeNmeaListener", returnNull);
+        hooks.put("addProximityAlert", returnNull);
+        hooks.put("removeProximityAlert", returnNull);
+        hooks.put("addGeofence", returnNull);
+        hooks.put("removeGeofence", returnNull);
+        hooks.put("removeAllGeofences", returnNull);
+        hooks.put("addGpsMeasurementListener", returnFalse);
+        hooks.put("removeGpsMeasurementListener", returnNull);
+        hooks.put("addGpsNavigationMessageListener", returnFalse);
+        hooks.put("removeGpsNavigationMessageListener", returnNull);
+        hooks.put("sendNiResponse", returnFalse);
+        hooks.put("sendExtraCommand", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 param.setResult(true);
             }
         });
 
-        if (Build.VERSION.SDK_INT >= 24) {
-//            hookTest(lpParam, "addNmeaListener", OnNmeaMessageListener.class, Handler.class);
-//            hookTest(lpParam, "registerGnssMeasurementsCallback", GnssMeasurementsEvent.Callback.class, Handler.class);
-//            hookTest(lpParam, "registerGnssNavigationMessageCallback", GnssNavigationMessage.Callback.class, Handler.class);
-//            hookTest(lpParam, "registerGnssStatusCallback", GnssStatus.Callback.class, Handler.class);
+        for (Method method : LocationManager.class.getDeclaredMethods()) {
+            XC_MethodHook hook = hooks.get(method.getName());
+            if (hook != null && Modifier.isPublic(method.getModifiers())) {
+                XposedBridge.hookMethod(method, hook);
+            }
         }
+//        for (final Method method : LocationManager.class.getDeclaredMethods()) {
+//            XposedBridge.hookMethod(method, new XC_MethodHook() {
+//                @Override
+//                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+//                    XposedBridge.log(lpParam.packageName + " called " + method.toString());
+//                }
+//            });
+//        }
     }
 
 }

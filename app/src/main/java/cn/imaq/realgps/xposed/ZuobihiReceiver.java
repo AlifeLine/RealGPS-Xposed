@@ -35,7 +35,7 @@ public class ZuobihiReceiver extends BroadcastReceiver {
     private int mask;
 
     private Random rand = new Random();
-    private int ttff = 1 + rand.nextInt(9);
+    private int ttff = 1000 + rand.nextInt(9000);
     private GpsStatus gpsStatus = (GpsStatus) XposedHelpers.newInstance(GpsStatus.class);
     private Location location = new Location(LocationManager.GPS_PROVIDER);
     ArrayList<GpsStatus.Listener> gpsListeners = new ArrayList<>();
@@ -72,7 +72,7 @@ public class ZuobihiReceiver extends BroadcastReceiver {
         if (svCount > 0) {
             for (LocationListener listener : locationListeners) {
                 listener.onLocationChanged(getAsLocation(LocationManager.GPS_PROVIDER));
-                XposedBridge.log("LISTENER_NOTIFIED " + listener.getClass().getCanonicalName());
+                XposedBridge.log("LISTENER_NOTIFIED " + listener.getClass().getName());
             }
             for (GpsStatus.Listener listener : gpsListeners) {
                 listener.onGpsStatusChanged(GpsStatus.GPS_EVENT_SATELLITE_STATUS);
