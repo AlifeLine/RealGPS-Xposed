@@ -10,8 +10,10 @@ import de.robv.android.xposed.*;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 import java.net.ServerSocket;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Created by adn55 on 2017/2/9.
@@ -34,9 +36,10 @@ public class HookPackage implements IXposedHookLoadPackage {
 
         // Check if app is enabled
         XSharedPreferences pref = new XSharedPreferences(BuildConfig.APPLICATION_ID);
+        Set<String> appList = pref.getStringSet("perapp_list", new HashSet<String>());
         if (!pref.getBoolean("global_switch", true) ||
                 (pref.getBoolean("perapp_switch", false) &&
-                        !pref.getStringSet("perapp_list", new HashSet<String>()).contains(lpParam.packageName))) {
+                        !appList.contains(lpParam.packageName) && !appList.contains(lpParam.processName))) {
             return;
         }
 
@@ -56,6 +59,8 @@ public class HookPackage implements IXposedHookLoadPackage {
             }
         });
 
+        HashMap<String, XC_MethodHook> hooks = new HashMap<>(16);
+
         // Providers related
         XC_MethodHook providersXC = new XC_MethodHook() {
             @Override
@@ -68,6 +73,7 @@ public class HookPackage implements IXposedHookLoadPackage {
             }
         };
         XposedHelpers.findAndHookMethod(LocationManager.class, "getAllProviders", providersXC);
+        XposedHelpers.findAndHookMethod(LocationManager.class, "getProviders", providersXC);
         XposedBridge.hookAllMethods(LocationManager.class, "getProviders", providersXC);
         XposedHelpers.findAndHookMethod(LocationManager.class, "getBestProvider", Criteria.class, boolean.class, new XC_MethodHook() {
             @Override
@@ -148,10 +154,15 @@ public class HookPackage implements IXposedHookLoadPackage {
         XposedBridge.hookAllMethods(LocationManager.class, "requestLocationUpdates", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                if (param.args[3] instanceof LocationListener) {
-                    ZuobihiReceiver.getInstance().locationListeners.add((LocationListener) param.args[3]);
-                } else {
-                    // TODO PendingIntent
+                for (int i = 1; i < param.args.length; i++) {
+                    if (param.args[i] instanceof LocationListener) {
+                        XposedBridge.log(lpParam.packageName + " REQ_LISTENER " + param.args[i].getClass().getCanonicalName());
+                        ZuobihiReceiver.getInstance().locationListeners.add((LocationListener) param.args[i]);
+                        break;
+                    } else if (param.args[i] instanceof PendingIntent) {
+                        // TODO PendingIntent
+                        break;
+                    }
                 }
                 param.setResult(null);
             }
@@ -165,7 +176,7 @@ public class HookPackage implements IXposedHookLoadPackage {
                         provider = (String) param.args[0];
                     }
                     ((LocationListener) param.args[1]).onLocationChanged(ZuobihiReceiver.getInstance().getAsLocation(provider));
-                } else {
+                } else if (param.args[1] instanceof PendingIntent) {
                     // TODO PendingIntent
                 }
                 param.setResult(null);
@@ -176,7 +187,7 @@ public class HookPackage implements IXposedHookLoadPackage {
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 if (param.args[0] instanceof LocationListener) {
                     ZuobihiReceiver.getInstance().locationListeners.remove(param.args[0]);
-                } else {
+                } else if (param.args[0] instanceof PendingIntent) {
                     // TODO PendingIntent
                 }
                 param.setResult(null);
@@ -199,6 +210,7 @@ public class HookPackage implements IXposedHookLoadPackage {
         XposedBridge.hookAllMethods(LocationManager.class, "removeNmeaListener", returnNull);
         XposedHelpers.findAndHookMethod(LocationManager.class, "addProximityAlert", double.class, double.class, float.class, long.class, PendingIntent.class, returnNull);
         XposedHelpers.findAndHookMethod(LocationManager.class, "removeProximityAlert", PendingIntent.class, returnNull);
+        XposedBridge.hookAllMethods(LocationManager.class, "addGeofence", returnNull);
         XposedHelpers.findAndHookMethod(LocationManager.class, "sendExtraCommand", String.class, String.class, Bundle.class, new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {

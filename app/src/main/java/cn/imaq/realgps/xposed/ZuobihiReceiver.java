@@ -9,6 +9,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
+import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
 import java.util.ArrayList;
@@ -71,6 +72,7 @@ public class ZuobihiReceiver extends BroadcastReceiver {
         if (svCount > 0) {
             for (LocationListener listener : locationListeners) {
                 listener.onLocationChanged(getAsLocation(LocationManager.GPS_PROVIDER));
+                XposedBridge.log("LISTENER_NOTIFIED " + listener.getClass().getCanonicalName());
             }
             for (GpsStatus.Listener listener : gpsListeners) {
                 listener.onGpsStatusChanged(GpsStatus.GPS_EVENT_SATELLITE_STATUS);
