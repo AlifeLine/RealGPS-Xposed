@@ -6,13 +6,11 @@ import android.content.Context;
 import android.location.*;
 import android.os.Build;
 import android.os.Bundle;
-import de.robv.android.xposed.IXposedHookLoadPackage;
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
+import de.robv.android.xposed.*;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 import java.net.ServerSocket;
+import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -29,8 +27,17 @@ public class HookPackage implements IXposedHookLoadPackage {
         if (context != null) {
             try {
                 new ZuobihiServer(context, new ServerSocket(9244));
+                XposedBridge.log("ZuobihiServer started in process " + lpParam.processName);
             } catch (Throwable ignored) {
             }
+        }
+
+        // Check if app is enabled
+        XSharedPreferences pref = new XSharedPreferences(BuildConfig.APPLICATION_ID);
+        if (!pref.getBoolean("global_switch", true) ||
+                (pref.getBoolean("perapp_switch", false) &&
+                        !pref.getStringSet("perapp_list", new HashSet<String>()).contains(lpParam.packageName))) {
+            return;
         }
 
         // Register broadcast receiver

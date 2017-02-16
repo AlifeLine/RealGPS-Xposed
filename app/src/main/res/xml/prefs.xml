@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+        android:key="group_global"
+        android:title="General">
+        <SwitchPreference
+            android:key="global_switch"
+            android:title="Enable RealGPS"
+            android:summaryOff="RealGPS is now disabled"
+            android:summaryOn="RealGPS is now enabled"
+            android:defaultValue="true"/>
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="group_global"
+        android:title="Per-App Settings">
+        <SwitchPreference
+            android:key="perapp_switch"
+            android:title="Enable only for selected apps"
+            android:summaryOff="RealGPS will be enabled systemwide"
+            android:summaryOn="RealGPS will only be enabled for selected apps"
+            android:defaultValue="false"/>
+
+        <MultiSelectListPreference
+            android:key="perapp_list"
+            android:title="Select apps"/>
+    </PreferenceCategory>
+
+</PreferenceScreen>

@@ -2,7 +2,6 @@ package cn.imaq.realgps.xposed;
 
 import android.content.Context;
 import android.content.Intent;
-import de.robv.android.xposed.XposedBridge;
 
 import java.io.InputStream;
 import java.net.ServerSocket;
@@ -17,44 +16,35 @@ public class ZuobihiServer {
 
     private Socket csocket;
 
-    private int[] prn;
-    private float[] snr, elv, azm;
+    private int[] prn = new int[64];
+    private float[] snr = new float[64];
+    private float[] elv = new float[64];
+    private float[] azm = new float[64];
 
-    private Pattern locPattern, satPattern;
+    private Pattern locPattern = Pattern.compile("\\[LOC:(.*?),(.*?),(.*?),(.*?),(.*?),(.*?),(.*?);");
+    private Pattern satPattern = Pattern.compile("SAT:(.*?),(.*?),(.*?),(.*?);");
+    private Intent intent = new Intent(ZuobihiReceiver.action);
     private Context context;
-    private Intent intent;
 
     public ZuobihiServer(Context context, final ServerSocket ssocket) {
         this.context = context;
-        try {
-            prn = new int[64];
-            snr = new float[64];
-            elv = new float[64];
-            azm = new float[64];
-            locPattern = Pattern.compile("\\[LOC:(.*?),(.*?),(.*?),(.*?),(.*?),(.*?),(.*?);");
-            satPattern = Pattern.compile("SAT:(.*?),(.*?),(.*?),(.*?);");
-            intent = new Intent("cn.imaq.realgps.xposed.UPDATE");
-
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        XposedBridge.log("ZuobihiServer: server started");
-                        while (true) {
-                            Socket socket = ssocket.accept();
-                            if (csocket != null) {
-                                csocket.close();
-                                // XposedBridge.log("ZuobihiServer: closed old connection");
-                            }
-                            csocket = socket;
-                            new Thread(new ServerThread()).start();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while (true) {
+                        Socket socket = ssocket.accept();
+                        if (csocket != null) {
+                            csocket.close();
+                            // XposedBridge.log("ZuobihiServer: closed old connection");
                         }
-                    } catch (Throwable ignored) {
+                        csocket = socket;
+                        new Thread(new ServerThread()).start();
                     }
+                } catch (Throwable ignored) {
                 }
-            }).start();
-        } catch (Throwable ignored) {
-        }
+            }
+        }).start();
     }
 
     private synchronized boolean parseData(String s) {
