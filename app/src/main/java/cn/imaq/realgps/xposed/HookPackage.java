@@ -12,6 +12,7 @@ import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
+import java.net.ServerSocket;
 import java.util.List;
 
 /**
@@ -22,6 +23,17 @@ public class HookPackage implements IXposedHookLoadPackage {
     @Override
     public void handleLoadPackage(final XC_LoadPackage.LoadPackageParam lpParam) throws Throwable {
         // XposedBridge.log("Load package: " + lpParam.packageName + " by " + lpParam.processName);
+
+        // Try to start server
+        Context context = AndroidAppHelper.currentApplication();
+        if (context != null) {
+            try {
+                new ZuobihiServer(context, new ServerSocket(9244));
+            } catch (Throwable ignored) {
+            }
+        }
+
+        // Register broadcast receiver
         XposedBridge.hookAllConstructors(LocationManager.class, new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
@@ -36,7 +48,6 @@ public class HookPackage implements IXposedHookLoadPackage {
                 XposedBridge.log("Registered receiver for " + lpParam.packageName);
             }
         });
-        new ZuobihiServer();
 
         // Providers related
         XC_MethodHook providersXC = new XC_MethodHook() {

@@ -1,6 +1,5 @@
 package cn.imaq.realgps.xposed;
 
-import android.app.AndroidAppHelper;
 import android.content.Context;
 import android.content.Intent;
 import de.robv.android.xposed.XposedBridge;
@@ -16,7 +15,6 @@ import java.util.regex.Pattern;
  */
 public class ZuobihiServer {
 
-    private ServerSocket ssocket;
     private Socket csocket;
 
     private int[] prn;
@@ -26,13 +24,9 @@ public class ZuobihiServer {
     private Context context;
     private Intent intent;
 
-    public ZuobihiServer() {
-        context = AndroidAppHelper.currentApplication();
-        if (context == null) {
-            return;
-        }
+    public ZuobihiServer(Context context, final ServerSocket ssocket) {
+        this.context = context;
         try {
-            ssocket = new ServerSocket(9244);
             prn = new int[64];
             snr = new float[64];
             elv = new float[64];
@@ -48,7 +42,6 @@ public class ZuobihiServer {
                         XposedBridge.log("ZuobihiServer: server started");
                         while (true) {
                             Socket socket = ssocket.accept();
-                            // close old connection
                             if (csocket != null) {
                                 csocket.close();
                                 // XposedBridge.log("ZuobihiServer: closed old connection");
