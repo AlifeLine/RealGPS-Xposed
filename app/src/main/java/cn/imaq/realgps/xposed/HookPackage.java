@@ -244,14 +244,6 @@ public class HookPackage implements IXposedHookLoadPackage {
                 XposedBridge.hookMethod(method, hook);
             }
         }
-//        for (final Method method : LocationManager.class.getDeclaredMethods()) {
-//            XposedBridge.hookMethod(method, new XC_MethodHook() {
-//                @Override
-//                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-//                    XposedBridge.log(lpParam.packageName + " called " + method.toString());
-//                }
-//            });
-//        }
     }
 
 }

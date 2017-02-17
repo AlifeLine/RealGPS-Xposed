@@ -101,9 +101,7 @@ public class ZuobihiReceiver extends BroadcastReceiver {
         if (status == null) {
             status = (GpsStatus) XposedHelpers.newInstance(GpsStatus.class);
         }
-        if (Build.VERSION.SDK_INT >= 24) {
-
-        } else {
+        if (Build.VERSION.SDK_INT < 24) {
             XposedHelpers.callMethod(status, "setStatus", svCount, prn, snr, elv, azm, mask, mask, mask);
             XposedHelpers.callMethod(status, "setTimeToFirstFix", ttff);
         }
