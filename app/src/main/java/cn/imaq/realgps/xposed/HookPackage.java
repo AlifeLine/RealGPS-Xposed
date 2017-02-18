@@ -177,7 +177,7 @@ public class HookPackage implements IXposedHookLoadPackage {
                         ZuobihiReceiver.getInstance().addListener(provider, (LocationListener) param.args[i]);
                         break;
                     } else if (param.args[i] instanceof PendingIntent) {
-                        // ZuobihiReceiver.getInstance().addPendingIntent(provider, (PendingIntent) param.args[i]);
+                        // TODO ZuobihiReceiver.getInstance().addPendingIntent(provider, (PendingIntent) param.args[i]);
                         break;
                     }
                 }
@@ -205,7 +205,7 @@ public class HookPackage implements IXposedHookLoadPackage {
                 if (param.args[0] instanceof LocationListener) {
                     ZuobihiReceiver.getInstance().removeListener((LocationListener) param.args[0]);
                 } else if (param.args[0] instanceof PendingIntent) {
-                    // ZuobihiReceiver.getInstance().removePendingIntent((PendingIntent) param.args[0]);
+                    // TODO ZuobihiReceiver.getInstance().removePendingIntent((PendingIntent) param.args[0]);
                 }
                 param.setResult(null);
             }

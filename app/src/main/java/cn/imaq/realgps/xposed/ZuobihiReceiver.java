@@ -8,12 +8,14 @@ import android.content.IntentFilter;
 import android.location.GpsStatus;
 import android.location.Location;
 import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.SystemClock;
-import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.ListIterator;
 import java.util.Random;
 
 /**
@@ -37,8 +39,9 @@ public class ZuobihiReceiver extends BroadcastReceiver {
 
     private Random rand = new Random();
     private int ttff = 1000 + rand.nextInt(9000);
-    ArrayList<GpsStatus.Listener> gpsListeners = new ArrayList<>();
-    ArrayList<ListenerWrapper> listenerWrappers = new ArrayList<>();
+    private Bundle gpsExtras = new Bundle();
+    private LinkedList<ListenerWrapper> listenerWrappers = new LinkedList<>();
+    LinkedList<GpsStatus.Listener> gpsListeners = new LinkedList<>();
 
     private static ZuobihiReceiver _instance;
 
@@ -68,6 +71,7 @@ public class ZuobihiReceiver extends BroadcastReceiver {
         mask = intent.getIntExtra("mask", 0);
         // XposedBridge.log("ZuobihiReceiver: received " + svCount + " satellites");
         // notify listeners
+        gpsExtras.putInt("satellites", svCount);
         if (svCount > 0) {
             for (ListenerWrapper wrapper : listenerWrappers) {
                 if (wrapper.listener != null) {
@@ -83,6 +87,9 @@ public class ZuobihiReceiver extends BroadcastReceiver {
     }
 
     Location getAsLocation(String provider) {
+        if (time == 0) {
+            return null;
+        }
         Location location = new Location(provider);
         location.setLatitude(lat);
         location.setLongitude(lng);
@@ -93,6 +100,9 @@ public class ZuobihiReceiver extends BroadcastReceiver {
         location.setTime(time);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
             location.setElapsedRealtimeNanos(SystemClock.elapsedRealtimeNanos());
+        }
+        if (provider.equals(LocationManager.GPS_PROVIDER)) {
+            location.setExtras(gpsExtras);
         }
         return location;
     }
@@ -110,15 +120,13 @@ public class ZuobihiReceiver extends BroadcastReceiver {
 
     void addListener(String provider, LocationListener listener) {
         listenerWrappers.add(new ListenerWrapper(provider, listener));
-        // XposedBridge.log("Added LocationListener type=" + provider + " " + listener.getClass().getName());
     }
 
     void removeListener(LocationListener listener) {
-        for (int i = 0; i < listenerWrappers.size(); i++) {
-            ListenerWrapper wrapper = listenerWrappers.get(i);
+        for (ListIterator<ListenerWrapper> itr = listenerWrappers.listIterator(); itr.hasNext();) {
+            ListenerWrapper wrapper = itr.next();
             if (wrapper.listener != null && wrapper.listener.equals(listener)) {
-                listenerWrappers.remove(i);
-                // XposedBridge.log("Removed LocationListener " + listener.getClass().getName());
+                itr.remove();
                 break;
             }
         }
@@ -126,7 +134,6 @@ public class ZuobihiReceiver extends BroadcastReceiver {
 
     void addPendingIntent(String provider, PendingIntent intent) {
         listenerWrappers.add(new ListenerWrapper(provider, intent));
-        XposedBridge.log("Added PendingIntent type=" + provider + " " + intent.toString());
     }
 
     void removePendingIntent(PendingIntent intent) {
@@ -134,7 +141,6 @@ public class ZuobihiReceiver extends BroadcastReceiver {
             ListenerWrapper wrapper = listenerWrappers.get(i);
             if (wrapper.listener != null && wrapper.intent.equals(intent)) {
                 listenerWrappers.remove(i);
-                XposedBridge.log("Removed PendingIntent " + intent.toString());
                 break;
             }
         }
