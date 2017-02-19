@@ -7,24 +7,37 @@
         <SwitchPreference
             android:key="global_switch"
             android:title="Enable RealGPS"
-            android:summaryOff="RealGPS is now disabled"
-            android:summaryOn="RealGPS is now enabled"
+            android:summaryOff="RealGPS for Xposed is now disabled"
+            android:summaryOn="RealGPS for Xposed is now enabled"
             android:defaultValue="true"/>
+
+        <EditTextPreference
+            android:key="global_port"
+            android:title="Change listening port"
+            android:summary="Click to change the port (1 - 65536) which ZuobihiServer will listen on"
+            android:inputType="number"
+            android:defaultValue="9244"/>
     </PreferenceCategory>
 
     <PreferenceCategory
-        android:key="group_global"
-        android:title="Per-App Settings">
+        android:key="group_advanced"
+        android:title="Advanced">
+        <SwitchPreference
+            android:key="network_forbid"
+            android:title="Forbid Wi-Fi / Cellular scanning"
+            android:summary="Enable if you had problems with AMap/Baidu/Tencent location SDKs"
+            android:defaultValue="false"/>
+
         <SwitchPreference
             android:key="perapp_switch"
-            android:title="Enable only for selected apps"
+            android:title="Hook selected apps only"
             android:summaryOff="RealGPS will be enabled systemwide"
             android:summaryOn="RealGPS will only be enabled for selected apps"
             android:defaultValue="false"/>
 
         <MultiSelectListPreference
             android:key="perapp_list"
-            android:title="Select apps"/>
+            android:title="Select apps to hook"/>
     </PreferenceCategory>
 
 </PreferenceScreen>

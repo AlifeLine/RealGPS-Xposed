@@ -23,19 +23,20 @@ public class HookPackage implements IXposedHookLoadPackage {
     @Override
     public void handleLoadPackage(final XC_LoadPackage.LoadPackageParam lpParam) throws Throwable {
         // XposedBridge.log("Load package: " + lpParam.packageName + " by " + lpParam.processName);
+        XSharedPreferences pref = new XSharedPreferences(BuildConfig.APPLICATION_ID);
 
         // Try to start server
         Context context = AndroidAppHelper.currentApplication();
         if (context != null) {
             try {
-                new ZuobihiServer(context, new ServerSocket(9244));
+                int port = Integer.parseInt(pref.getString("global_port", "9244"));
+                new ZuobihiServer(context, new ServerSocket(port));
                 XposedBridge.log("ZuobihiServer started in process " + lpParam.processName);
             } catch (Throwable ignored) {
             }
         }
 
         // Check if app is enabled
-        XSharedPreferences pref = new XSharedPreferences(BuildConfig.APPLICATION_ID);
         Set<String> appList = pref.getStringSet("perapp_list", new HashSet<String>());
         if (!pref.getBoolean("global_switch", true) ||
                 (pref.getBoolean("perapp_switch", false) &&
