@@ -4,16 +4,14 @@ import android.app.AndroidAppHelper;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.location.*;
+import android.net.wifi.WifiManager;
 import de.robv.android.xposed.*;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.ServerSocket;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Created by adn55 on 2017/2/9.
@@ -244,6 +242,17 @@ public class HookPackage implements IXposedHookLoadPackage {
             if (hook != null && Modifier.isPublic(method.getModifiers())) {
                 XposedBridge.hookMethod(method, hook);
             }
+        }
+
+        // Forbid network scanning
+        if (pref.getBoolean("network_forbid", false)) {
+            XposedHelpers.findAndHookMethod(WifiManager.class, "getScanResults", new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                    param.setResult(new ArrayList<>());
+                    XposedBridge.log(lpParam.packageName + " getScanResults, Size=" + ((List) param.getResult()).size());
+                }
+            });
         }
     }
 
