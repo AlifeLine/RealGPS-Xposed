@@ -24,7 +24,7 @@
         android:title="Advanced">
         <SwitchPreference
             android:key="network_forbid"
-            android:title="Forbid Wi-Fi / Cellular scanning"
+            android:title="Forbid WLAN / Cellular scanning"
             android:summary="Enable if you had problems with AMap/Baidu/Tencent location SDKs"
             android:defaultValue="false"/>
 

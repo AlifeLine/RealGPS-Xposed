@@ -5,6 +5,10 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.location.*;
 import android.net.wifi.WifiManager;
+import android.os.Build;
+import android.telephony.CellLocation;
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
 import de.robv.android.xposed.*;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
@@ -245,15 +249,46 @@ public class HookPackage implements IXposedHookLoadPackage {
         }
 
         // Forbid network scanning
-        if (pref.getBoolean("network_forbid", false)) {
-            XposedHelpers.findAndHookMethod(WifiManager.class, "getScanResults", new XC_MethodHook() {
+        if (pref.getBoolean("network_forbid", false) && containsBAT(lpParam.classLoader)) {
+            XposedBridge.log(lpParam.packageName + " contains BAT, hooking WLAN/Cellular scanning");
+            XC_MethodHook returnEmptyList = new XC_MethodHook() {
                 @Override
-                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                    param.setResult(new ArrayList<>());
-                    XposedBridge.log(lpParam.packageName + " getScanResults, Size=" + ((List) param.getResult()).size());
+                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                    param.setResult(new LinkedList<>());
+                }
+            };
+            XposedHelpers.findAndHookMethod(WifiManager.class, "getScanResults", returnEmptyList);
+            XposedHelpers.findAndHookMethod(TelephonyManager.class, "getCellLocation", new XC_MethodHook() {
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                    param.setResult(CellLocation.getEmpty());
                 }
             });
+            XposedHelpers.findAndHookMethod(TelephonyManager.class, "getNeighboringCellInfo", returnEmptyList);
+            XposedHelpers.findAndHookMethod(TelephonyManager.class, "listen", PhoneStateListener.class, int.class, returnNull);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                XposedHelpers.findAndHookMethod(TelephonyManager.class, "getAllCellInfo", returnEmptyList);
+            }
         }
+    }
+
+    private boolean containsBAT(ClassLoader loader) {
+        try {
+            XposedHelpers.findClass("com.amap.api.location.AMapLocationClient", loader);
+            return true;
+        } catch (Exception ignored) {
+        }
+        try {
+            XposedHelpers.findClass("com.baidu.location.LocationClient", loader);
+            return true;
+        } catch (Exception ignored) {
+        }
+        try {
+            XposedHelpers.findClass("com.tencent.map.geolocation.TencentLocationRequest", loader);
+            return true;
+        } catch (Exception ignored) {
+        }
+        return false;
     }
 
 }
