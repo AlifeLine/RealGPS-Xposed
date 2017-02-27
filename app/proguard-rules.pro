@@ -16,4 +16,4 @@
 #   public *;
 #}
 
--keep class *
+-keep class cn.imaq.realgps.xposed.HookPackage

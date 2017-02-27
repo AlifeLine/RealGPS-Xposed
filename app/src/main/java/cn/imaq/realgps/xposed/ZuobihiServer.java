@@ -16,10 +16,10 @@ public class ZuobihiServer {
 
     private Socket csocket;
 
-    private int[] prn = new int[64];
-    private float[] snr = new float[64];
-    private float[] elv = new float[64];
-    private float[] azm = new float[64];
+    private int[] prn = new int[32];
+    private float[] snr = new float[32];
+    private float[] elv = new float[32];
+    private float[] azm = new float[32];
 
     private Pattern locPattern = Pattern.compile("\\[LOC:(.*?),(.*?),(.*?),(.*?),(.*?),(.*?),(.*?);");
     private Pattern satPattern = Pattern.compile("SAT:(.*?),(.*?),(.*?),(.*?);");
@@ -72,6 +72,9 @@ public class ZuobihiServer {
                         azm[svCount] = Float.parseFloat(satMatcher.group(4));
                         mask |= (1 << (prn[svCount] - 1));
                         svCount++;
+                        if (svCount >= 32) {
+                            break;
+                        }
                     }
                 }
 
