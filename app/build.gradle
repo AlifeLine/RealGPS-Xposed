@@ -6,7 +6,7 @@ android {
     defaultConfig {
         applicationId "cn.imaq.realgps.xposed"
         minSdkVersion 14
-        targetSdkVersion 25
+        targetSdkVersion 22
         versionCode 1
         versionName "1.0"
     }
@@ -22,5 +22,6 @@ android {
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
-    provided 'de.robv.android.xposed:api:82'
+    provided 'de.robv.android.xposed:api:53'
+    provided 'de.robv.android.xposed:api:53:sources'
 }

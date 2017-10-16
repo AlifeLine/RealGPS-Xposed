@@ -13,7 +13,7 @@
             android:value="Alternative to ZuobihiGPS"/>
         <meta-data
             android:name="xposedminversion"
-            android:value="30"/>
+            android:value="53"/>
 
         <activity
             android:name=".SettingsActivity"

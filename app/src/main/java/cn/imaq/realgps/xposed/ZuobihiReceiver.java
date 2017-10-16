@@ -12,6 +12,7 @@ import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
+import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
 import java.util.LinkedList;
@@ -69,7 +70,7 @@ public class ZuobihiReceiver extends BroadcastReceiver {
         elv = intent.getFloatArrayExtra("elv");
         azm = intent.getFloatArrayExtra("azm");
         mask = intent.getIntExtra("mask", 0);
-        // XposedBridge.log("ZuobihiReceiver: received " + svCount + " satellites");
+        XposedBridge.log("ZuobihiReceiver: received " + svCount + " satellites");
         // notify listeners
         gpsExtras.putInt("satellites", svCount);
         if (svCount > 0) {
@@ -81,6 +82,7 @@ public class ZuobihiReceiver extends BroadcastReceiver {
                 // TODO PendingIntent
             }
             for (GpsStatus.Listener listener : gpsListeners) {
+                XposedBridge.log("GPS Listener notified: " + listener);
                 listener.onGpsStatusChanged(GpsStatus.GPS_EVENT_SATELLITE_STATUS);
             }
         }
