@@ -54,16 +54,13 @@ public class HookPackage implements IXposedHookLoadPackage {
                 if (context == null) {
                     context = (Context) param.args[0];
                 }
-                context.registerReceiver(
-                        ZuobihiReceiver.getInstance(),
-                        ZuobihiReceiver.intentFilter
-                );
+                context.registerReceiver(ZuobihiReceiver.getInstance(), ZuobihiReceiver.intentFilter);
                 XposedBridge.log("Registered receiver for " + lpParam.packageName);
             }
         });
 
         // ========== HOOKS ==========
-        HashMap<String, XC_MethodHook> hooks = new HashMap<>(27, 1);
+        HashMap<String, XC_MethodHook> hooks = new HashMap<>();
 
         // Providers related
         XC_MethodHook providerListXC = new XC_MethodHook() {
@@ -154,11 +151,40 @@ public class HookPackage implements IXposedHookLoadPackage {
             }
         });
 
+        // GNSS (Nougat) related
+        hooks.put("registerGnssStatusCallback", new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                GnssStatus.Callback callback = (GnssStatus.Callback) param.args[0];
+                if (!ZuobihiReceiver.getInstance().gnssCallbacks.contains(callback)) {
+                    callback.onStarted();
+                    callback.onFirstFix(ZuobihiReceiver.getInstance().ttff);
+                    ZuobihiReceiver.getInstance().gnssCallbacks.add(callback);
+                }
+                param.setResult(true);
+            }
+        });
+        hooks.put("unregisterGnssStatusCallback", new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                ZuobihiReceiver.getInstance().gnssCallbacks.remove(param.args[0]);
+                param.setResult(null);
+            }
+        });
+        XC_MethodHook returnZero = new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                param.setResult(0);
+            }
+        };
+        hooks.put("getGnssYearOfHardware", returnZero);
+        hooks.put("getGnssBatchSize", returnZero);
+
         // Location related
         hooks.put("getLastLocation", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                param.setResult(ZuobihiReceiver.getInstance().getAsLocation("fused"));
+                param.setResult(ZuobihiReceiver.getInstance().getAsLocation(LocationManager.GPS_PROVIDER));
             }
         });
         hooks.put("getLastKnownLocation", new XC_MethodHook() {
@@ -227,6 +253,12 @@ public class HookPackage implements IXposedHookLoadPackage {
                 param.setResult(true);
             }
         };
+        XC_MethodHook returnFalse = new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                param.setResult(false);
+            }
+        };
         hooks.put("addNmeaListener", returnTrue);
         hooks.put("removeNmeaListener", returnNull);
         hooks.put("addProximityAlert", returnNull);
@@ -240,6 +272,12 @@ public class HookPackage implements IXposedHookLoadPackage {
         hooks.put("removeGpsNavigationMessageListener", returnNull);
         hooks.put("sendNiResponse", returnTrue);
         hooks.put("sendExtraCommand", returnTrue);
+        // Nougat
+        hooks.put("registerGnssMeasurementsCallback", returnTrue);
+        hooks.put("unregisterGnssMeasurementsCallback", returnNull);
+        hooks.put("registerGnssBatchedLocationCallback", returnFalse);
+        hooks.put("unregisterGnssBatchedLocationCallback", returnFalse);
+        hooks.put("flushGnssBatch", returnNull);
 
         for (Method method : LocationManager.class.getDeclaredMethods()) {
             XC_MethodHook hook = hooks.get(method.getName());
