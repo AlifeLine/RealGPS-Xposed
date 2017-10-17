@@ -292,9 +292,10 @@ public class HookPackage implements IXposedHookLoadPackage {
             XC_MethodHook returnEmptyList = new XC_MethodHook() {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                    param.setResult(new LinkedList<>());
+                    param.setResult(Collections.emptyList());
                 }
             };
+            XposedHelpers.findAndHookMethod(WifiManager.class, "startScan", returnTrue);
             XposedHelpers.findAndHookMethod(WifiManager.class, "getScanResults", returnEmptyList);
             XposedHelpers.findAndHookMethod(TelephonyManager.class, "getCellLocation", new XC_MethodHook() {
                 @Override

@@ -9,13 +9,9 @@ import android.location.*;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
-import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.ListIterator;
-import java.util.Random;
+import java.util.*;
 
 /**
  * Created by adn55 on 2017/2/15.
@@ -39,9 +35,9 @@ public class ZuobihiReceiver extends BroadcastReceiver {
     private Random rand = new Random();
     int ttff = 1000 + rand.nextInt(9000);
     private Bundle gpsExtras = new Bundle();
-    private LinkedList<ListenerWrapper> listenerWrappers = new LinkedList<>();
-    LinkedList<GpsStatus.Listener> gpsListeners = new LinkedList<>();
-    LinkedList<GnssStatus.Callback> gnssCallbacks = new LinkedList<>();
+    private List<ListenerWrapper> listenerWrappers = new LinkedList<>();
+    Set<GpsStatus.Listener> gpsListeners = new HashSet<>();
+    Set<GnssStatus.Callback> gnssCallbacks = new HashSet<>();
 
     private static ZuobihiReceiver _instance;
 
@@ -200,6 +196,26 @@ public class ZuobihiReceiver extends BroadcastReceiver {
         ListenerWrapper(String provider, PendingIntent intent) {
             this.provider = provider;
             this.intent = intent;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            ListenerWrapper that = (ListenerWrapper) o;
+
+            if (!provider.equals(that.provider)) return false;
+            if (listener != null ? !listener.equals(that.listener) : that.listener != null) return false;
+            return intent != null ? intent.equals(that.intent) : that.intent == null;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = provider.hashCode();
+            result = 31 * result + (listener != null ? listener.hashCode() : 0);
+            result = 31 * result + (intent != null ? intent.hashCode() : 0);
+            return result;
         }
     }
 
