@@ -21,6 +21,9 @@ public class ZuobihiReceiver extends BroadcastReceiver {
     static String action = BuildConfig.APPLICATION_ID + ".UPDATE";
     static final IntentFilter intentFilter = new IntentFilter(action);
 
+    private static final int SVID_SHIFT = XposedHelpers.getStaticIntField(GnssStatus.class, "SVID_SHIFT_WIDTH");
+    private static final int CONSTELLATION_SHIFT = XposedHelpers.getStaticIntField(GnssStatus.class, "CONSTELLATION_TYPE_SHIFT_WIDTH");
+
     private double lat, lng, alt;
     private float speed, bearing, accr;
     private long time;
@@ -30,6 +33,7 @@ public class ZuobihiReceiver extends BroadcastReceiver {
     private float[] snr;
     private float[] elv;
     private float[] azm;
+    private float[] freq;
     private int mask;
 
     private Random rand = new Random();
@@ -64,6 +68,7 @@ public class ZuobihiReceiver extends BroadcastReceiver {
         snr = intent.getFloatArrayExtra("snr");
         elv = intent.getFloatArrayExtra("elv");
         azm = intent.getFloatArrayExtra("azm");
+        freq = new float[svCount];
         mask = intent.getIntExtra("mask", 0);
         // XposedBridge.log("ZuobihiReceiver: received " + svCount + " satellites");
         // notify listeners
@@ -126,33 +131,36 @@ public class ZuobihiReceiver extends BroadcastReceiver {
             return null;
         }
         int[] svidWithFlags = new int[prn.length];
-        int svidShift = 7, consShift = 3;
         for (int i = 0; i < prn.length; i++) {
             if (prn[i] >= 1 && prn[i] <= 32) { // GPS
                 svidWithFlags[i] = prn[i];
-                svidWithFlags[i] = (svidWithFlags[i] << svidShift) + (GnssStatus.CONSTELLATION_GPS << consShift) + 7;
+                svidWithFlags[i] = (svidWithFlags[i] << SVID_SHIFT) + (GnssStatus.CONSTELLATION_GPS << CONSTELLATION_SHIFT) + 7;
             } else if (prn[i] >= 65 && prn[i] <= 96) { // GLONASS
                 svidWithFlags[i] = prn[i] - 64;
-                svidWithFlags[i] = (svidWithFlags[i] << svidShift) + (GnssStatus.CONSTELLATION_GLONASS << consShift) + 7;
+                svidWithFlags[i] = (svidWithFlags[i] << SVID_SHIFT) + (GnssStatus.CONSTELLATION_GLONASS << CONSTELLATION_SHIFT) + 7;
             } else if (prn[i] >= 193 && prn[i] <= 200) { // QZSS
                 svidWithFlags[i] = prn[i];
-                svidWithFlags[i] = (svidWithFlags[i] << svidShift) + (GnssStatus.CONSTELLATION_QZSS << consShift) + 7;
+                svidWithFlags[i] = (svidWithFlags[i] << SVID_SHIFT) + (GnssStatus.CONSTELLATION_QZSS << CONSTELLATION_SHIFT) + 7;
             } else if (prn[i] >= 201 && prn[i] <= 235) { // BeiDou
                 svidWithFlags[i] = prn[i] - 200;
-                svidWithFlags[i] = (svidWithFlags[i] << svidShift) + (GnssStatus.CONSTELLATION_BEIDOU << consShift) + 7;
+                svidWithFlags[i] = (svidWithFlags[i] << SVID_SHIFT) + (GnssStatus.CONSTELLATION_BEIDOU << CONSTELLATION_SHIFT) + 7;
             } else if (prn[i] >= 301 && prn[i] <= 336) { // Galileo
                 svidWithFlags[i] = prn[i] - 300;
-                svidWithFlags[i] = (svidWithFlags[i] << svidShift) + (GnssStatus.CONSTELLATION_GALILEO << consShift) + 7;
+                svidWithFlags[i] = (svidWithFlags[i] << SVID_SHIFT) + (GnssStatus.CONSTELLATION_GALILEO << CONSTELLATION_SHIFT) + 7;
             } else {
                 svidWithFlags[i] = prn[i];
-                svidWithFlags[i] = (svidWithFlags[i] << svidShift) + (GnssStatus.CONSTELLATION_UNKNOWN << consShift) + 7;
+                svidWithFlags[i] = (svidWithFlags[i] << SVID_SHIFT) + (GnssStatus.CONSTELLATION_UNKNOWN << CONSTELLATION_SHIFT) + 7;
             }
         }
         return svidWithFlags;
     }
 
     private GnssStatus getAsGnssStatus() {
-        return (GnssStatus) XposedHelpers.newInstance(GnssStatus.class, svCount, getSvidWithFlags(), snr, elv, azm);
+        if (Build.VERSION.SDK_INT < 26) {
+            return (GnssStatus) XposedHelpers.newInstance(GnssStatus.class, svCount, getSvidWithFlags(), snr, elv, azm);
+        } else {
+            return (GnssStatus) XposedHelpers.newInstance(GnssStatus.class, svCount, getSvidWithFlags(), snr, elv, azm, freq);
+        }
     }
 
     void addListener(String provider, LocationListener listener) {
