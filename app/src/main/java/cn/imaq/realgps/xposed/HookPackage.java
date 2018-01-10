@@ -39,7 +39,7 @@ public class HookPackage implements IXposedHookLoadPackage {
         }
 
         // Check if app is enabled
-        Set<String> appList = pref.getStringSet("perapp_list", new HashSet<String>());
+        Set<String> appList = pref.getStringSet("perapp_list", Collections.<String>emptySet());
         if (!pref.getBoolean("global_switch", true) ||
                 (pref.getBoolean("perapp_switch", false) &&
                         !appList.contains(lpParam.packageName) && !appList.contains(lpParam.processName))) {
@@ -275,6 +275,8 @@ public class HookPackage implements IXposedHookLoadPackage {
         // Nougat
         hooks.put("registerGnssMeasurementsCallback", returnTrue);
         hooks.put("unregisterGnssMeasurementsCallback", returnNull);
+        hooks.put("registerGnssNavigationMessageCallback", returnTrue);
+        hooks.put("unregisterGnssNavigationMessageCallback", returnNull);
         hooks.put("registerGnssBatchedLocationCallback", returnFalse);
         hooks.put("unregisterGnssBatchedLocationCallback", returnFalse);
         hooks.put("flushGnssBatch", returnNull);
