@@ -275,6 +275,8 @@ public class HookPackage implements IXposedHookLoadPackage {
         // Nougat
         hooks.put("registerGnssMeasurementsCallback", returnTrue);
         hooks.put("unregisterGnssMeasurementsCallback", returnNull);
+        hooks.put("registerGnssNavigationMessageCallback", returnTrue);
+        hooks.put("unregisterGnssNavigationMessageCallback", returnNull);
         hooks.put("registerGnssBatchedLocationCallback", returnFalse);
         hooks.put("unregisterGnssBatchedLocationCallback", returnFalse);
         hooks.put("flushGnssBatch", returnNull);
