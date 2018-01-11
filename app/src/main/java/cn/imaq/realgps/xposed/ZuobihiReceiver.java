@@ -21,9 +21,6 @@ public class ZuobihiReceiver extends BroadcastReceiver {
     static String action = BuildConfig.APPLICATION_ID + ".UPDATE";
     static final IntentFilter intentFilter = new IntentFilter(action);
 
-    private static final int SVID_SHIFT = XposedHelpers.getStaticIntField(GnssStatus.class, "SVID_SHIFT_WIDTH");
-    private static final int CONSTELLATION_SHIFT = XposedHelpers.getStaticIntField(GnssStatus.class, "CONSTELLATION_TYPE_SHIFT_WIDTH");
-
     private double lat, lng, alt;
     private float speed, bearing, accr;
     private long time;
@@ -130,6 +127,8 @@ public class ZuobihiReceiver extends BroadcastReceiver {
         if (prn == null) {
             return null;
         }
+        int SVID_SHIFT = XposedHelpers.getStaticIntField(GnssStatus.class, "SVID_SHIFT_WIDTH");
+        int CONSTELLATION_SHIFT = XposedHelpers.getStaticIntField(GnssStatus.class, "CONSTELLATION_TYPE_SHIFT_WIDTH");
         int[] svidWithFlags = new int[prn.length];
         for (int i = 0; i < prn.length; i++) {
             if (prn[i] >= 1 && prn[i] <= 32) { // GPS
